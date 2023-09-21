@@ -118,8 +118,6 @@ public:
 
 class MexFunction : public matlab::mex::Function {
 private:
-    ArrayFactory f;
-
     StateVector * a(
         const std::vector<std::complex<float>> & inData,
         const scalarArguments &                  args) {
@@ -147,7 +145,9 @@ private:
 
 public:
     void operator()(ArgumentList outputs, ArgumentList inputs) {
-        // checkArguments(outputs, inputs);
+        this->checkArguments(outputs, inputs);
+
+        ArrayFactory factory;
 
         const TypedArray<std::complex<float>>  cpxDataMat = std::move(inputs[0]);
         const std::vector<std::complex<float>> cpxData(cpxDataMat.begin(), cpxDataMat.end());
@@ -180,53 +180,59 @@ public:
 
         const size_t nOutputs = outputs.size();
         if (nOutputs > 0) {
-            outputs[0] = f.createArray<float>(
+            outputs[0] = factory.createArray<float>(
                 {1, nSize},
                 psv->max_score().data(),
                 psv->max_score().data() + nSize);
         }
         if (nOutputs > 1) {
-            outputs[1] = f.createArray<float>(
+            outputs[1] = factory.createArray<float>(
                 {1, nSize},
                 psv->frequency_offset().data(),
                 psv->frequency_offset().data() + nSize);
         }
         if (nOutputs > 2) {
-            outputs[2] = f.createArray<float>({unsigned(args.p_omega), nSize},
-                                              psv->scores().data(),
-                                              psv->scores().data() + psv->scores().size());
+            outputs[2] = factory.createArray<float>({unsigned(args.p_omega), nSize},
+                                                    psv->scores().data(),
+                                                    psv->scores().data() + psv->scores().size());
         }
         if (nOutputs > 3) {
             bool * ptr = new bool[nSize];
             std::copy(psv->frame_detected().begin(), psv->frame_detected().end(), ptr);
-            outputs[3] = f.createArray<bool>(
+            outputs[3] = factory.createArray<bool>(
                 {1, nSize},
                 ptr,
                 ptr + nSize);
+            delete[] ptr;
         }
-        if (nOutputs > 4)
-            outputs[4] = f.createArray<uint32_t>(
+        if (nOutputs > 4) {
+            outputs[4] = factory.createArray<uint32_t>(
                 {1, nSize},
                 psv->frequency_index().data(),
                 psv->frequency_index().data() + nSize);
+        }
         if (nOutputs > 5) {
             bool * ptr = new bool[nSize];
             std::copy(psv->max_found().begin(), psv->max_found().end(), ptr);
-            outputs[5] = f.createArray<bool>(
+            outputs[5] = factory.createArray<bool>(
                 {1, nSize},
                 ptr,
                 ptr + nSize);
+            delete[] ptr;
         }
-        if (nOutputs > 6)
-            outputs[6] = f.createArray<uint64_t>(
+        if (nOutputs > 6) {
+            outputs[6] = factory.createArray<uint64_t>(
                 {1, nSize},
                 psv->chip_from_max().data(),
                 psv->chip_from_max().data() + nSize);
-        if (nOutputs > 7)
-            outputs[7] = f.createArray<uint64_t>(
+        }
+        if (nOutputs > 7) {
+            outputs[7] = factory.createArray<uint64_t>(
                 {1, nSize},
                 psv->chip_since_last_det().data(),
                 psv->chip_since_last_det().data() + nSize);
+        }
+        delete psv;
     }
 
     void checkArguments(ArgumentList outputs, ArgumentList inputs) {
@@ -236,24 +242,36 @@ public:
         // Get array factory
         ArrayFactory factory;
 
-        // Check offset argument: First input must be scalar double
-        if (inputs[0].getType() != ArrayType::DOUBLE || inputs[0].getNumberOfElements() != 1) {
+        if (inputs.size() < 3) {
             matlabPtr->feval(u"error",
                              0,
-                             std::vector<Array>({factory.createScalar("First input must be scalar double")}));
+                             std::vector<Array>({factory.createScalar("At least three arguments are required")}));
+        }
+
+        if (inputs.size() > 7) {
+            matlabPtr->feval(u"error",
+                             0,
+                             std::vector<Array>({factory.createScalar("At most seven arguments can be given")}));
+        }
+
+        // Check offset argument: First input must be scalar double
+        if (inputs[0].getType() != ArrayType::COMPLEX_SINGLE || inputs[0].getDimensions().size() > 2 || inputs[0].getDimensions()[0] > 1) {
+            matlabPtr->feval(u"error",
+                             0,
+                             std::vector<Array>({factory.createScalar("First input 'data' must be a row vector of complex-single (e.g. [1+1j, 0+0j, ...])")}));
         }
 
         // Check array argument: Second input must be double array
-        if (inputs[1].getType() != ArrayType::DOUBLE) {
+        if (inputs[1].getType() != ArrayType::SINGLE) {
             matlabPtr->feval(u"error",
                              0,
-                             std::vector<Array>({factory.createScalar("Input must be double array")}));
+                             std::vector<Array>({factory.createScalar("Second input 'pn' must be a single row vector (e.g. [1, 0, 0, ...])")}));
         }
         // Check number of outputs
-        if (outputs.size() > 1) {
+        if (outputs.size() > 8) {
             matlabPtr->feval(u"error",
                              0,
-                             std::vector<Array>({factory.createScalar("Only one output is returned")}));
+                             std::vector<Array>({factory.createScalar("From zero to eight outputs can be returned")}));
         }
     }
 };

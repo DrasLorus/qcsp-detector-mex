@@ -3,3 +3,4 @@ includes
 *.mat
 compile_commands.json
 .cache
+*.mexa64
