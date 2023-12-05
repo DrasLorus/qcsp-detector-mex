@@ -22,7 +22,7 @@ qcsp_detector.mexa64: qcsp_detector.cpp lib/libqcsp_passed.a includes $(HEADERS)
 	$(MEX) qcsp_detector.cpp -Llib -lqcsp_passed
 
 lib/libqcsp_passed.a includes:
-	@echo -ne "To acquire ./lib/libqcsp_passed.a and headers in ./includes/:\n  -- use QCSP_PASSED targets qcsp_passed and detector_export_public_headers.\n"
+	@echo "  To acquire ./lib/libqcsp_passed.a and headers in ./includes/:\n  -- use QCSP_PASSED targets qcsp_passed and detector_export_public_headers.\n"
 	@exit 1
 
 clean:
